@@ -1,134 +1,117 @@
-# Semana 1
+# Actividad: ciclo de vida de un bucket en S3
 
-## Configuración inicial de AWS
+## Objetivo
 
-Al terminar esta guía tendrás un usuario de trabajo, la AWS CLI instalada y tu terminal conectada a tu cuenta.
+Crear un bucket, subir, consultar, modificar y compartir objetos desde la AWS CLI, y protegerlo con una política de menor privilegio.
 
-### Antes de empezar
+## Antes de empezar
 
-- Una cuenta de AWS activa.
-- MFA activado en tu cuenta.
-- Saber cuál es la región de tu proyecto. La ves en la dirección de la consola: `...us-east-2.console.aws.amazon.com...` significa `us-east-2`.
+- AWS CLI v2 configurada con tu usuario administrador.
+- Corre `aws sts get-caller-identity` y `aws configure get region` para confirmar quién eres y en qué región trabajas.
+- Ten abierto `info.md`: ahí están los comandos que necesitas.
+- Crea una carpeta de trabajo llamada `practica-s3` y entra en ella.
 
-### 1. Crear tu usuario de trabajo y sus llaves (en la consola)
+## Parte 1: Crear
 
-1. Escribe **IAM** en la barra de búsqueda y entra al servicio.
-2. Menú izquierdo: **Usuarios** → **Crear usuario**.
-3. Nombre: por ejemplo `abraham-admin`. Siguiente.
-4. Elige **Adjuntar políticas directamente**, busca `AdministratorAccess` y **márcala con el cuadro de selección**. Luego crea el usuario.
-5. Entra al usuario recién creado → pestaña **Credenciales de seguridad** → **Crear clave de acceso**.
-6. Caso de uso: **Interfaz de línea de comandos (CLI)**. Acepta el aviso y crea.
-7. Descarga el archivo `.csv`. La clave secreta solo se muestra esta vez.
+1. Crea un bucket llamado `practica-<tu-nombre>-<número>`, por ejemplo `practica-laura-4821`.
+2. Lista todos los buckets de la cuenta y confirma que aparece.
+3. Consulta en qué región quedó tu bucket.
 
-> Verifica en la pestaña **Permisos** del usuario que aparezca `AdministratorAccess`. Si no quedó marcada, el usuario no podrá hacer nada.
+**Resultado esperado:** el bucket existe, está vacío y está en la región de tu proyecto.
 
-### 2. Instalar la AWS CLI v2
+Pista: si el nombre ya existe en AWS, cambia el número. Solo se permiten minúsculas, números y guiones.
 
-Primero revisa si ya la tienes:
+## Parte 2: Subir
 
-```bash
-aws --version
-```
+4. Crea tres archivos de texto: `notas.txt`, `tareas.txt` y `secreto.txt`, cada uno con una línea de contenido.
+5. Sube `notas.txt` al bucket.
+6. Sube los otros dos con un solo comando usando `sync`.
+7. Lista el contenido del bucket con tamaños legibles y el total.
 
-Si responde `aws-cli/2.x.x`, salta al paso 3. Si no, instálala.
+**Resultado esperado:** el bucket tiene tres objetos.
 
-**Linux (Ubuntu):**
+## Parte 3: Consultar y descargar
 
-```bash
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
-unzip awscliv2.zip
-sudo ./aws/install
-aws --version
-```
+8. Muestra el contenido de `notas.txt` en la terminal sin descargarlo.
+9. Muestra el tamaño y la fecha de `tareas.txt` sin descargarlo.
+10. Crea una carpeta `descargas` y descarga ahí `secreto.txt`.
 
-Si `unzip` no existe: `sudo apt install unzip`.
+## Parte 4: Editar
 
-> No uses `sudo apt install awscli`: puede instalar la versión 1 o una desactualizada.
+11. Renombra `tareas.txt` a `pendientes.txt` dentro del bucket.
+12. Modifica tu `notas.txt` local agregándole una línea y vuelve a subirlo.
+13. Muestra el contenido de `notas.txt` desde el bucket y verifica el cambio.
 
-**Windows y macOS:** sigue la guía oficial:
-https://docs.aws.amazon.com/es_es/cli/latest/userguide/getting-started-install.html
+**Resultado esperado:** el objeto se sobrescribe; S3 no guarda la versión anterior.
 
-Al terminar puedes borrar el instalador:
+## Parte 5: Compartir sin hacerlo público
 
-```bash
-rm -r aws awscliv2.zip
-```
+14. Genera un enlace temporal de 60 segundos para `notas.txt`.
+15. Ábrelo en el navegador antes de que pase el minuto.
+16. Espera a que expire y vuelve a abrirlo.
 
-### 3. Configurar la AWS CLI
+**Resultado esperado:** el enlace funciona primero y luego devuelve un error de acceso. El bucket nunca dejó de ser privado.
 
-```bash
-aws configure
-```
+## Parte 6: Menor privilegio
 
-Pide cuatro datos:
+17. Crea un usuario llamado `lector-s3-<tu-nombre>`.
+18. Crea un archivo `solo-lectura.json` con esta política, usando el nombre de tu bucket:
 
-| Dato | Qué escribir |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::TU-BUCKET/*"
+      }]
+    }
+
+19. Adjúntasela al usuario como política en línea:
+
+    `aws iam put-user-policy --user-name lector-s3-<tu-nombre> --policy-name leer-objetos --policy-document file://solo-lectura.json`
+
+20. Crea una llave de acceso para el usuario y configura el perfil `lector-s3`. Escribe la región de tu proyecto cuando la pida.
+21. Con ese perfil, muestra el contenido de `notas.txt`.
+22. Con ese perfil, intenta listar el contenido del bucket.
+23. Con ese perfil, intenta borrar `secreto.txt`.
+
+**Resultado esperado:** el paso 21 funciona; los pasos 22 y 23 devuelven `AccessDenied`.
+
+## Parte 7: Eliminar
+
+Hazlo en este orden, con tu usuario administrador:
+
+24. Intenta borrar el bucket sin vaciarlo y lee el error.
+25. Borra todos los objetos del bucket.
+26. Borra el bucket.
+27. Borra la llave de acceso, la política en línea y el usuario `lector-s3-<tu-nombre>`.
+28. Elimina el bloque `[lector-s3]` de `~/.aws/credentials` y de `~/.aws/config`.
+29. Lista los buckets y los usuarios y confirma que no quedó nada de la actividad.
+
+## Entregable
+
+Un archivo `evidencia.md` con:
+
+- Captura o salida de los pasos 3, 7, 13, 16, 21, 22, 23, 24 y 29.
+- La respuesta a las preguntas de reflexión.
+
+**Nunca incluyas la clave secreta de la llave de acceso en la evidencia ni la subas a GitHub.**
+
+## Preguntas de reflexión
+
+1. ¿Por qué el nombre de tu bucket tuvo que ser distinto al de tus compañeros si cada uno tiene su propia cuenta?
+2. El usuario del paso 21 pudo leer un archivo, pero en el paso 22 no pudo ver la lista. ¿Qué acción le faltaba en la política?
+3. En la política, ¿qué significa el `/*` al final del `Resource`? ¿Qué pasaría si se quitara?
+4. ¿En qué se diferencia compartir un archivo con un enlace temporal de hacer público el bucket?
+5. Según el modelo de responsabilidad compartida, si alguien deja un bucket público con datos de clientes, ¿de quién es la responsabilidad?
+
+## Criterios de evaluación
+
+| Criterio | Cumple |
 |---|---|
-| AWS Access Key ID | El ID de tu llave, está en el `.csv` |
-| AWS Secret Access Key | Tu clave secreta, está en el `.csv` |
-| Default region name | La región de tu proyecto, por ejemplo `us-east-2` |
-| Default output format | `json` |
-
-### 4. Comprobar la conexión
-
-```bash
-aws sts get-caller-identity
-```
-
-Debe responder algo así:
-
-```json
-{
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "123456789012",
-    "Arn": "arn:aws:iam::123456789012:user/abraham-admin"
-}
-```
-
-El `Arn` debe terminar en `user/` seguido del nombre de tu usuario. Este comando es el "¿quién soy?" de AWS: córrelo siempre antes de crear algo.
-
-### 5. Comprobar los permisos
-
-```bash
-aws iam list-users
-```
-
-Si muestra la lista de usuarios, tu usuario tiene permisos. Si responde `AccessDenied`, vuelve al paso 1 y revisa la política.
-
-### 6. Ver o cambiar la configuración
-
-```bash
-# Ver toda la configuración actual
-aws configure list
-
-# Ver la región
-aws configure get region
-
-# Cambiar la región
-aws configure set region us-east-2
-```
-
-### Dónde queda guardado
-
-| Archivo | Qué contiene |
-|---|---|
-| `~/.aws/credentials` | Tus llaves de acceso |
-| `~/.aws/config` | La región y el formato de salida |
-
-Están fuera de la carpeta del proyecto, así que no se suben a GitHub por accidente.
-
-### Errores frecuentes
-
-| Error | Causa | Solución |
-|---|---|---|
-| `aws: command not found` | La CLI no está instalada | Repetir el paso 2 |
-| `InvalidClientTokenId` o `SignatureDoesNotMatch` | Llave mal copiada | Repetir `aws configure` |
-| `AccessDenied ... no identity-based policy allows` | Al usuario le falta la política | Adjuntar `AdministratorAccess` |
-| `NoRegion` | No se configuró región | `aws configure set region <región>` |
-| "No veo mis recursos" | La CLI y la consola están en regiones distintas | Usar la misma región en ambas |
-
-### Reglas de seguridad
-
-- Nunca subas el `.csv` ni tus llaves a GitHub, ni las pegues en un chat.
-- No guardes el `.csv` dentro de la carpeta del proyecto.
-- Si una llave se expone, bórrala de inmediato en IAM y crea otra.
+| El bucket fue creado, usado y eliminado en el orden correcto | |
+| Se evidencia el enlace temporal funcionando y luego expirado | |
+| Se evidencia una acción permitida y dos denegadas con el usuario lector | |
+| La política solo permite `s3:GetObject` sobre su propio bucket | |
+| La evidencia no expone ninguna clave secreta | |
+| No quedaron buckets, usuarios ni llaves de la actividad en la cuenta | |
