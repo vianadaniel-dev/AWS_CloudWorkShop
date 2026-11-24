@@ -1,0 +1,2 @@
+# Ignorar archivos CSV en la carpeta Documentation (ej. credenciales de acceso)
+Documentation/*.csv
