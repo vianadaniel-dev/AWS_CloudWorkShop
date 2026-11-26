@@ -1,0 +1,2 @@
+Este es el archivo que almacenara notas.
+Y esta es una linea adicional para este.
